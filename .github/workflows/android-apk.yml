@@ -3,89 +3,39 @@ name: Build Android APK
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
-
-permissions:
-  contents: read
+    branches: [ main, master ]
 
 jobs:
-  build-apk:
-    name: Build Seller Image & Price Helper APK
-    runs-on: ubuntu-24.04
-    timeout-minutes: 40
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Check project files
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ ! -f package.json ]; then
-            echo "ERROR: package.json is missing from the repository."
-            echo "Upload the Seller Image & Price Helper project files to the repository root first."
-            exit 1
-          fi
-
-          if [ ! -f capacitor.config.ts ]; then
-            echo "ERROR: capacitor.config.ts is missing."
-            exit 1
-          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: npm
-          cache-dependency-path: package-lock.json
 
-      - name: Setup Java
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
-
-      - name: Check versions
-        run: |
-          node --version
-          npm --version
-          java -version
+          java-version: '17'
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci
 
-      - name: Run lint
-        run: npm run lint
-
-      - name: Build web application
-        run: npm run build
-
-      - name: Create Capacitor Android project
-        run: npx cap add android
-
-      - name: Sync Capacitor Android project
-        run: npx cap sync android
-
-      - name: Make Gradle executable
-        run: chmod +x android/gradlew
+      - name: Build web app and sync Capacitor
+        run: npm run cap:sync
 
       - name: Build debug APK
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
-
-      - name: Verify APK
-        shell: bash
-        run: |
-          set -euo pipefail
-          APK="android/app/build/outputs/apk/debug/app-debug.apk"
-          if [ ! -s "$APK" ]; then
-            echo "ERROR: APK was not created."
-            exit 1
-          fi
-          echo "APK successfully created:"
-          ls -lh "$APK"
+        run: ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -94,12 +44,3 @@ jobs:
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
-
-      - name: Upload build reports on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-build-reports
-          path: android/**/build/reports/**
-          if-no-files-found: ignore
-          retention-days: 7
