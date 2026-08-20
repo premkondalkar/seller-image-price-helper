@@ -1,0 +1,110 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    name: Build Seller Image & Price Helper APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract project ZIP if needed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f seller-image-price-helper-github-apk.zip ]; then
+            rm -rf _app
+            mkdir -p _app
+            unzip -q -o seller-image-price-helper-github-apk.zip -d _app
+            PROJECT_DIR=$(find _app -maxdepth 3 -type f -name package.json -print -quit | xargs -r dirname)
+            if [ -z "${PROJECT_DIR:-}" ]; then
+              echo "package.json was not found inside the uploaded ZIP."
+              exit 1
+            fi
+            echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          elif [ -f package.json ]; then
+            echo "PROJECT_DIR=." >> "$GITHUB_ENV"
+          else
+            echo "No package.json or seller-image-price-helper-github-apk.zip found."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ${{ env.PROJECT_DIR }}/package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Verify toolchain
+        run: |
+          node --version
+          npm --version
+          java -version
+
+      - name: Install dependencies
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: npm install --no-audit --no-fund
+
+      - name: Lint
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: npm run lint
+
+      - name: Build web app
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: npm run build
+
+      - name: Create Capacitor Android project
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: npx cap add android
+
+      - name: Sync Capacitor Android project
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: npx cap sync android
+
+      - name: Make Gradle executable
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: chmod +x android/gradlew
+
+      - name: Build debug APK
+        working-directory: ${{ env.PROJECT_DIR }}/android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Verify APK
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: test -s android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: seller-image-price-helper-debug-apk
+          path: ${{ env.PROJECT_DIR }}/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build-diagnostics
+          path: |
+            ${{ env.PROJECT_DIR }}/android/**/*.log
+            ${{ env.PROJECT_DIR }}/android/**/build/reports/**
+          if-no-files-found: ignore
+          retention-days: 7
