@@ -1,3 +1,11 @@
 import type { ProductInfo } from '../types';
-export function Dashboard({product,suggestedProfit,chargeable,generatedCount,onNavigate}:{product:ProductInfo;suggestedProfit:number;chargeable:number;generatedCount:number;onNavigate:(id:string)=>void}){return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><Card title="Product" value={product.name||'Not added'} onClick={()=>onNavigate('details')}/><Card title="Suggested price" value={suggestedProfit>0?`₹${suggestedProfit.toFixed(0)}`:'—'} onClick={()=>onNavigate('price')}/><Card title="Est. chargeable weight" value={`${chargeable.toFixed(2)} kg`} onClick={()=>onNavigate('shipping')}/><Card title="Generated images" value={String(generatedCount)} onClick={()=>onNavigate('images')}/></div>}
-function Card({title,value,onClick}:{title:string;value:string;onClick:()=>void}){return <button onClick={onClick} className="card p-4 text-left transition hover:-translate-y-0.5 hover:shadow-lg"><div className="text-xs font-bold uppercase tracking-wide text-gray-500">{title}</div><div className="mt-2 truncate text-lg font-extrabold text-gray-900">{value}</div><div className="mt-2 text-xs font-semibold text-blue-600">Open section →</div></button>}
+
+export function Dashboard({product,suggestedProfit,chargeable,generatedCount,onNavigate}:{product:ProductInfo;suggestedProfit:number;chargeable:number;generatedCount:number;onNavigate:(id:string)=>void}){
+ const cards=[
+  {title:'Product',value:product.name||'Add product',hint:product.name?'Ready to edit':'Start with product details',icon:'📦',id:'details'},
+  {title:'Suggested price',value:suggestedProfit>0?`₹${suggestedProfit.toFixed(0)}`:'—',hint:suggestedProfit>0?'Based on your costs':'Enter your costs',icon:'₹',id:'price'},
+  {title:'Chargeable weight',value:`${chargeable.toFixed(2)} kg`,hint:'Actual / volumetric estimate',icon:'⚖',id:'shipping'},
+  {title:'Catalog images',value:String(generatedCount),hint:generatedCount?'Images ready':'Generate 5 layouts',icon:'✦',id:'images'}
+ ];
+ return <div className="dashboard-grid">{cards.map(card=><button key={card.id} onClick={()=>onNavigate(card.id)} className="dashboard-card"><span className="dashboard-card-icon">{card.icon}</span><span className="dashboard-card-title">{card.title}</span><strong>{card.value}</strong><small>{card.hint}</small><span className="dashboard-open">Open →</span></button>)}</div>
+}
