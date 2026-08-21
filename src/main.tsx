@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createRoot } from 'react-dom/client';
 import './index.css';
 import type { Background, ModelChoice, PriceInputs, ProductInfo, GeneratedImage } from './types';
 import { loadProject, saveProject, clearProject } from './lib/storage';
@@ -94,4 +95,5 @@ function App(){
   <Toast message={toast} onClose={()=>setToast(null)}/>
  </div>
 }
+
 createRoot(document.getElementById('root')!).render(<React.StrictMode><App/></React.StrictMode>);
